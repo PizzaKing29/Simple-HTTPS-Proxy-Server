@@ -19,9 +19,17 @@ class Proxy
 
             Console.WriteLine($"server is listening on IP/Port {Listener.LocalEndpoint}");
 
-            Listener.AcceptSocketAsync();
+            Socket Client = Listener.AcceptSocket();
 
-            await MakeHTTPSRequest();
+            // await MakeHTTPSRequest();
+
+            byte[] Data = new byte[200];
+            int Size = Client.Receive(Data);
+            Console.WriteLine("Recieved data: ");
+            for (int i = 0; i < Size; i++)
+            {
+                Console.Write(Convert.ToChar(Data[i]));
+            }
         }
         catch (Exception)
         {
@@ -30,12 +38,13 @@ class Proxy
         }
     }
 
-    async static Task MakeHTTPSRequest()
+    /*async static Task MakeHTTPSRequest()
     {
         HttpClient HttpClient = new HttpClient();
         HttpResponseMessage Response = await HttpClient.GetAsync("https://www.google.com");
         string Content = await Response.Content.ReadAsStringAsync();
         //Console.WriteLine(Content);
-        Console.WriteLine(Response);
+        //Console.WriteLine(Response);
     }
+    */
 }
