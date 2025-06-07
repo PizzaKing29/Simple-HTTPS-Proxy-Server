@@ -26,10 +26,10 @@ class Proxy
             }
 
         }
-        catch (Exception)
+        catch (Exception e)
         {
             Console.WriteLine("There was an error trying to fetch a request");
-            throw;
+            Console.WriteLine(e.Message);
         }
     }
 
@@ -88,23 +88,29 @@ class Proxy
                 Console.WriteLine("No CONNECTION target has been found");
             }
         }
-        catch (Exception)
+        catch (Exception e)
         {
-
-            throw;
+            Console.WriteLine(e.Message);
         }
     }
 
     public static async Task RelayAsync(Socket From, Socket To)
     {
-        Byte[] Buffer = new byte[4096];
-        while (true)
+        try
         {
-            int BytesRead = await From.ReceiveAsync(Buffer, SocketFlags.None);
-            if (BytesRead == 0)
-                break;
+            while (true)
+            {
+                Byte[] Buffer = new byte[4096];
+                int BytesRead = await From.ReceiveAsync(Buffer, SocketFlags.None);
+                if (BytesRead == 0)
+                    break;
 
-            await To.SendAsync(new ArraySegment<byte>(Buffer, 0, BytesRead), SocketFlags.None);
+                await To.SendAsync(new ArraySegment<byte>(Buffer, 0, BytesRead), SocketFlags.None);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
         }
     }
 }
