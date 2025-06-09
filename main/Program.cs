@@ -8,21 +8,21 @@ class Proxy
     public static async Task Main()
     {
         // Change IP Address and Port here
-        string InternetProtocol = "127.0.0.1";
-        int Port = 8888;
+        string internetProtocol = "127.0.0.1";
+        int port = 8888;
 
         try
         {
-            IPAddress IpAddress = IPAddress.Parse(InternetProtocol);
-            TcpListener Listener = new TcpListener(IpAddress, Port);
-            Listener.Start();
+            IPAddress ipAddress = IPAddress.Parse(internetProtocol);
+            TcpListener listener = new TcpListener(ipAddress, port);
+            listener.Start();
 
-            Console.WriteLine($"server is listening on IP/Port {Listener.LocalEndpoint}");
+            Console.WriteLine($"server is listening on IP/Port {listener.LocalEndpoint}");
 
             while (true)
             {
-                Socket Client = await Listener.AcceptSocketAsync();
-                _ = HandleClient(Client);
+                Socket client = await listener.AcceptSocketAsync();
+                _ = HandleClient(client);
             }
 
         }
@@ -33,54 +33,54 @@ class Proxy
         }
     }
 
-    public static async Task HandleClient(Socket Client)
+    public static async Task HandleClient(Socket client)
     {
         try
         {
-            byte[] Data = new byte[1024];
-            string Output = "";
-            int Size = await Client.ReceiveAsync(Data);
+            byte[] data = new byte[1024];
+            string output = "";
+            int size = await client.ReceiveAsync(data);
 
-            for (int i = 0; i < Size; i++)
+            for (int i = 0; i < size; i++)
             {
-                Output += Convert.ToChar(Data[i]);
+                output += Convert.ToChar(data[i]);
             }
-            Console.WriteLine($"Recieved data: {Output} ");
+            Console.WriteLine($"Recieved data: {output} ");
 
 
-            var Match = Regex.Match(Output, @"CONNECT\s+(?<address>[^\s]+)");
-            if (Match.Success)
+            var match = Regex.Match(output, @"CONNECT\s+(?<address>[^\s]+)");
+            if (match.Success)
             {
-                string TargetAddress = Match.Groups["address"].Value;
-                string[] Parts = TargetAddress.Split(':');
-                string Domain = Parts[0];
-                int DNSPort = int.Parse(Parts[1]);
+                string targetAddress = match.Groups["address"].Value;
+                string[] parts = targetAddress.Split(':');
+                string domain = parts[0];
+                int dnsPort = int.Parse(parts[1]);
 
 
-                IPAddress[] Addresses = Dns.GetHostAddresses(Domain);
-                IPAddress IpToUse = Addresses.FirstOrDefault(Ip => Ip.AddressFamily == AddressFamily.InterNetwork)?? Addresses[0]; // fallback to any if no IPv4 found
+                IPAddress[] addresses = Dns.GetHostAddresses(domain);
+                IPAddress ipToUse = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork)?? addresses[0]; // fallback to any if no IPv4 found
 
 
-                IPEndPoint EndPoint = new IPEndPoint(IpToUse, DNSPort);
-                Socket Target = new Socket(IpToUse.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                IPEndPoint endPoint = new IPEndPoint(ipToUse, dnsPort);
+                Socket target = new Socket(ipToUse.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-                await Target.ConnectAsync(EndPoint);
-                Console.WriteLine($"Connected to {Domain} ({IpToUse}:{DNSPort})");
+                await target.ConnectAsync(endPoint);
+                Console.WriteLine($"Connected to {domain} ({ipToUse}:{dnsPort})");
 
                 // send HTTP 200 Connection
-                byte[] ConnectResponse = System.Text.Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection established\r\n\r\n");
-                await Client.SendAsync(ConnectResponse);
+                byte[] connectResponse = System.Text.Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection established\r\n\r\n");
+                await client.SendAsync(connectResponse);
 
-                NetworkStream TargetStream = new NetworkStream(Target);
+                NetworkStream targetStream = new NetworkStream(target);
 
-                Task ClientToTarget = RelayAsync(Client, Target);
-                Task TargetToClient = RelayAsync(Target, Client);
+                Task clientToTarget = RelayAsync(client, target);
+                Task targetToClient = RelayAsync(target, client);
 
-                await Task.WhenAny(ClientToTarget, TargetToClient);
+                await Task.WhenAny(clientToTarget, targetToClient);
 
                 // When one side disconnects, close both sockets
-                Client.Close();
-                Target.Close();
+                client.Close();
+                target.Close();
 
             }
             else
@@ -94,18 +94,18 @@ class Proxy
         }
     }
 
-    public static async Task RelayAsync(Socket From, Socket To)
+    public static async Task RelayAsync(Socket from, Socket to)
     {
         try
         {
             while (true)
             {
-                Byte[] Buffer = new byte[4096];
-                int BytesRead = await From.ReceiveAsync(Buffer, SocketFlags.None);
-                if (BytesRead == 0)
+                Byte[] buffer = new byte[4096];
+                int bytesRead = await from.ReceiveAsync(buffer, SocketFlags.None);
+                if (bytesRead == 0)
                     break;
 
-                await To.SendAsync(new ArraySegment<byte>(Buffer, 0, BytesRead), SocketFlags.None);
+                await to.SendAsync(new ArraySegment<byte>(buffer, 0, bytesRead), SocketFlags.None);
             }
         }
         catch (Exception e)
