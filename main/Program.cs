@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+
 
 class Proxy
 {
@@ -58,7 +58,7 @@ class Proxy
 
 
                 IPAddress[] addresses = Dns.GetHostAddresses(domain);
-                IPAddress ipToUse = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork)?? addresses[0]; // fallback to any if no IPv4 found
+                IPAddress ipToUse = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0]; // fallback to any if no IPv4 found
 
 
                 IPEndPoint endPoint = new IPEndPoint(ipToUse, dnsPort);
@@ -76,11 +76,20 @@ class Proxy
                 Task clientToTarget = RelayAsync(client, target);
                 Task targetToClient = RelayAsync(target, client);
 
-                await Task.WhenAny(clientToTarget, targetToClient);
+                await Task.WhenAll(clientToTarget, targetToClient);
 
                 // When one side disconnects, close both sockets
-                client.Close();
-                target.Close();
+                try
+                {
+                    client.Shutdown(SocketShutdown.Both);
+                    target.Shutdown(SocketShutdown.Both);
+                    client.Close();
+                    target.Close();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
 
             }
             else
@@ -103,9 +112,13 @@ class Proxy
                 Byte[] buffer = new byte[4096];
                 int bytesRead = await from.ReceiveAsync(buffer, SocketFlags.None);
                 if (bytesRead == 0)
+                {
                     break;
-
-                await to.SendAsync(new ArraySegment<byte>(buffer, 0, bytesRead), SocketFlags.None);
+                }
+                else
+                {
+                    await to.SendAsync(new ArraySegment<byte>(buffer, 0, bytesRead), SocketFlags.None);
+                }
             }
         }
         catch (Exception e)
