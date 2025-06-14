@@ -60,7 +60,7 @@ public class ProxyService : BackgroundService
                 Task clientToTarget = RelayAsync(client, target);
                 Task targetToClient = RelayAsync(target, client);
 
-                await Task.WhenAll(clientToTarget, targetToClient);
+                await Task.WhenAny(clientToTarget, targetToClient);
 
                 try
                 {
